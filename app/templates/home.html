@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Browse Movies</h1>
+<div class="row">
+  <input id="search" placeholder="Search title..." />
+  <input id="genre" placeholder="Filter genre (e.g. Action)" />
+  <input id="year" placeholder="Year" type="number" />
+  <button id="btn-search">Search</button>
+</div>
+<div id="list"></div>
+<div class="pagination">
+  <button id="prev">Prev</button>
+  <span id="page">1</span>
+  <button id="next">Next</button>
+</div>
+
+<script>
+let page=1, size=10;
+async function load(){
+  const q=document.getElementById('search').value;
+  const genre=document.getElementById('genre').value;
+  const year=document.getElementById('year').value;
+  const params = new URLSearchParams({page, size});
+  if(q) params.append('q', q);
+  if(genre) params.append('genre', genre);
+  if(year) params.append('year', year);
+  const r=await fetch(`/api/movies?`+params.toString());
+  const data=await r.json();
+  const list=document.getElementById('list');
+  list.innerHTML='';
+  data.forEach(m=>{
+    const div=document.createElement('div');
+    div.className='card';
+    div.innerHTML = `<div><b>${m.title}</b> (${m.year||''})<br/>
+      Genres: ${m.genres||'-'}<br/>Avg: ${m.avg_rating?.toFixed?.(2) || '-'} (${m.rating_count})</div>
+      <div>
+        <input type="number" min="1" max="5" id="score-${m.id}" placeholder="1-5"/>
+        <button onclick="rate(${m.id})">Rate</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+document.getElementById('btn-search').onclick=()=>{page=1;load();};
+document.getElementById('prev').onclick=()=>{page=Math.max(1,page-1);document.getElementById('page').innerText=page;load();};
+document.getElementById('next').onclick=()=>{page=page+1;document.getElementById('page').innerText=page;load();};
+async function rate(movie_id){
+  const score = parseInt(document.getElementById(`score-${movie_id}`).value);
+  if(!score) return alert('Enter 1-5');
+  const token = localStorage.getItem('token') || '';
+  const r=await fetch('/api/ratings',{method:'POST', headers:{
+    'Content-Type':'application/json','Authorization':'Bearer '+token
+  },body:JSON.stringify({movie_id, score})});
+  if(r.status===401) { alert('Login first (see /my-ratings).'); return; }
+  const d=await r.json();
+  alert('Saved rating: '+d.score);
+  load();
+}
+load();
+</script>
+{% endblock %}

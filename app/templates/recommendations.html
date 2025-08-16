@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Recommendations</h1>
+<div class="tabs">
+  <button onclick="load('content')">Content-based</button>
+  <button onclick="load('cf')">Collaborative (KNN)</button>
+</div>
+<div id="recs"></div>
+<script>
+async function load(kind){
+  const token=localStorage.getItem('token')||'';
+  const r=await fetch(`/api/recommendations/${kind}?top_n=20`,{headers:{'Authorization':'Bearer '+token}});
+  if(r.status===401){ document.getElementById('recs').innerHTML='Login first on My Ratings page.'; return; }
+  const data=await r.json();
+  const box=document.getElementById('recs'); box.innerHTML='';
+  data.forEach(x=>{
+    const div=document.createElement('div'); div.className='card';
+    div.innerHTML=`<b>${x.title}</b> — score: ${x.score.toFixed(3)} <button onclick="rate(${x.movie_id})">Rate 5⭐</button>`;
+    box.appendChild(div);
+  });
+}
+async function rate(movie_id){
+  const token=localStorage.getItem('token')||'';
+  await fetch('/api/ratings',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({movie_id,score:5})});
+  alert('Rated 5. Re-run recommender for refreshed results.');
+}
+</script>
+{% endblock %}
